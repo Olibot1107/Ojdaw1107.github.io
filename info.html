@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Info Fetcher</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 50px;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
+    }
+
+    button {
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+
+    .results {
+      margin-top: 20px;
+      max-width: 600px;
+      width: 100%;
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    .results div {
+      margin-bottom: 15px;
+    }
+
+    .results span {
+      font-weight: bold;
+    }
+
+    pre {
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>User Info Lookup</h1>
+  <input type="text" id="username" placeholder="Enter username" />
+  <button onclick="fetchUserInfo()">Get Info</button>
+
+  <div class="results" id="results">
+    <div><span>Bio:</span> <p id="bio">-</p></div>
+    <div><span>Messages:</span> <pre id="ms">-</pre></div>
+    <div><span>Playtime:</span> <pre id="playtime">-</pre></div>
+    <div><span>Join Info:</span> <pre id="join">-</pre></div>
+  </div>
+
+  <script>
+    // Helper to format playtime from seconds to d:h:m:s
+    function formatPlaytime(seconds) {
+      const d = Math.floor(seconds / (3600 * 24));
+      const h = Math.floor((seconds % (3600 * 24)) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${d}d ${h}h ${m}m ${s}s`;
+    }
+
+    function fetchJson(endpoint, username, callback) {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', `http://return-dresses.gl.at.ply.gg:54775/api/${endpoint}/${username}`, true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              callback(null, data);
+            } catch (e) {
+              callback(`Error parsing JSON: ${e.message}`);
+            }
+          } else {
+            callback(`Error: ${xhr.status} - ${xhr.statusText}`);
+          }
+        }
+      };
+      xhr.send();
+    }
+
+    async function fetchUserInfo() {
+      const username = document.getElementById("username").value.trim();
+      if (!username) {
+        alert("Please enter a username.");
+        return;
+      }
+
+      // Show loading
+      document.getElementById("bio").innerText = 'Loading...';
+      document.getElementById("ms").innerText = 'Loading...';
+      document.getElementById("playtime").innerText = 'Loading...';
+      document.getElementById("join").innerText = 'Loading...';
+
+      // Fetch and display
+      fetchJson("bio", username, function(err, bioData) {
+        if (err) {
+          document.getElementById("bio").innerText = `Error: ${err}`;
+        } else {
+          document.getElementById("bio").innerText = bioData.bio || 'No bio found.';
+        }
+      });
+
+      fetchJson("ms", username, function(err, msData) {
+        if (err) {
+          document.getElementById("ms").innerText = `Error: ${err}`;
+        } else {
+          if (Array.isArray(msData) && msData.length > 0) {
+            const entry = msData[0];
+            document.getElementById("ms").innerText = `Username: ${entry.username}\nMessages: ${entry.message_count}`;
+          } else {
+            document.getElementById("ms").innerText = 'No message data.';
+          }
+        }
+      });
+
+      fetchJson("playtime", username, function(err, playtimeData) {
+        if (err) {
+          document.getElementById("playtime").innerText = `Error: ${err}`;
+        } else {
+          if (Array.isArray(playtimeData) && playtimeData.length > 0) {
+            const entry = playtimeData[0];
+            const formatted = formatPlaytime(entry.playtime);
+            document.getElementById("playtime").innerText =
+              `Username: ${entry.username}\nPlaytime: ${formatted}`;
+          } else {
+            document.getElementById("playtime").innerText = 'No playtime data.';
+          }
+        }
+      });
+
+      fetchJson("join", username, function(err, joinData) {
+        if (err) {
+          document.getElementById("join").innerText = `Error: ${err}`;
+        } else {
+          if (Array.isArray(joinData) && joinData.length > 0) {
+            const entry = joinData[0];
+            document.getElementById("join").innerText = 
+              `Username: ${entry.username}\n` +
+              `Join Date: ${new Date(entry.join_date).toLocaleString()}\n` +
+              `Last Message: ${new Date(entry.last_message).toLocaleString()}\n` +
+              `Join Count: ${entry.join_count}\n` +
+              `Last Seen: ${new Date(entry.last_seen).toLocaleString()}`;
+          } else {
+            document.getElementById("join").innerText = 'No join info.';
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
